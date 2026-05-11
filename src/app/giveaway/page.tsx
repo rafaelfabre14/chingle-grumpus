@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { Product } from '@/types';
 import Image from 'next/image';
 import GiveawayForm from '@/components/ui/GiveawayForm';
@@ -12,7 +12,7 @@ const pastWinners = [
 ];
 
 export default async function GiveawayPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: config } = await supabase
     .from('giveaway_config')

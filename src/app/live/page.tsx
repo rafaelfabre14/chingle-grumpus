@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { LiveDrop, Product } from '@/types';
 import LivePageClient from './LivePageClient';
 import ProductCard from '@/components/ui/ProductCard';
@@ -6,7 +6,7 @@ import ProductCard from '@/components/ui/ProductCard';
 export const revalidate = 0;
 
 export default async function LivePage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: liveDrop } = await supabase
     .from('live_drops')
@@ -62,7 +62,7 @@ export default async function LivePage() {
               FROM LAST DROP
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentProducts.map((p) => (
+              {recentProducts.map((p: Product) => (
                 <ProductCard key={p.id} product={p as Product} />
               ))}
             </div>
