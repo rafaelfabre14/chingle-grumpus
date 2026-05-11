@@ -11,6 +11,8 @@ const pastWinners = [
   { username: '@collector_mike99', card: 'Pikachu VMAX Secret Rare', date: 'April 11, 2025' },
 ];
 
+export const revalidate = 0;
+
 export default async function GiveawayPage() {
   const supabase = createServiceClient();
 

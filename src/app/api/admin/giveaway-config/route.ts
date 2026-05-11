@@ -16,8 +16,7 @@ export async function PATCH(req: NextRequest) {
   const supabase = createServiceClient();
   const { error } = await supabase
     .from('giveaway_config')
-    .update({ active_prize_product_id: active_prize_product_id || null })
-    .eq('id', 1);
+    .upsert({ id: 1, active_prize_product_id: active_prize_product_id || null });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
