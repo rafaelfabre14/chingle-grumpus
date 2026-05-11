@@ -160,19 +160,19 @@ export default function CartPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>First Name *</label>
-                  <input required value={customer.firstName} onChange={set('firstName')} placeholder="Ash" className={inputCls} style={inputStyle} />
+                  <input required autoComplete="given-name" value={customer.firstName} onChange={set('firstName')} placeholder="Ash" className={inputCls} style={inputStyle} />
                 </div>
                 <div>
                   <label className={labelCls}>Last Name *</label>
-                  <input required value={customer.lastName} onChange={set('lastName')} placeholder="Ketchum" className={inputCls} style={inputStyle} />
+                  <input required autoComplete="family-name" value={customer.lastName} onChange={set('lastName')} placeholder="Ketchum" className={inputCls} style={inputStyle} />
                 </div>
                 <div>
                   <label className={labelCls}>Email *</label>
-                  <input required type="email" value={customer.email} onChange={set('email')} placeholder="ash@pokemon.com" className={inputCls} style={inputStyle} />
+                  <input required type="email" autoComplete="email" value={customer.email} onChange={set('email')} placeholder="ash@pokemon.com" className={inputCls} style={inputStyle} />
                 </div>
                 <div>
                   <label className={labelCls}>Phone</label>
-                  <input type="tel" value={customer.phone} onChange={setPhone} placeholder="(555) 000-0000" className={inputCls} style={inputStyle} />
+                  <input type="tel" autoComplete="tel" value={customer.phone} onChange={setPhone} placeholder="(555) 000-0000" className={inputCls} style={inputStyle} />
                 </div>
               </div>
 
@@ -183,20 +183,20 @@ export default function CartPage() {
               <div className="flex flex-col gap-4">
                 <div>
                   <label className={labelCls}>Street Address *</label>
-                  <input required value={customer.street} onChange={set('street')} placeholder="1 Pokemon Way" className={inputCls} style={inputStyle} />
+                  <input required autoComplete="street-address" value={customer.street} onChange={set('street')} placeholder="1 Pokemon Way" className={inputCls} style={inputStyle} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-1">
                     <label className={labelCls}>City *</label>
-                    <input required value={customer.city} onChange={set('city')} placeholder="Pallet Town" className={inputCls} style={inputStyle} />
+                    <input required autoComplete="address-level2" value={customer.city} onChange={set('city')} placeholder="Pallet Town" className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>State *</label>
-                    <input required value={customer.state} onChange={setState} placeholder="CA" maxLength={2} className={inputCls} style={inputStyle} />
+                    <input required autoComplete="address-level1" value={customer.state} onChange={setState} placeholder="CA" maxLength={2} className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>ZIP *</label>
-                    <input required value={customer.zip} onChange={setZip} placeholder="90210" inputMode="numeric" className={inputCls} style={inputStyle} />
+                    <input required autoComplete="postal-code" value={customer.zip} onChange={setZip} placeholder="90210" inputMode="numeric" className={inputCls} style={inputStyle} />
                   </div>
                 </div>
               </div>
