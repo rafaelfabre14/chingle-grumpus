@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Minus, Plus, X, ShoppingCart } from 'lucide-react';
@@ -29,6 +29,21 @@ function isComplete(c: CustomerInfo) {
   return !!(c.firstName && c.lastName && c.email && c.street && c.city && c.state && c.zip);
 }
 
+interface NominatimResult {
+  display_name: string;
+  address?: {
+    house_number?: string;
+    road?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    suburb?: string;
+    county?: string;
+    state?: string;
+    postcode?: string;
+  };
+}
+
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 10);
   if (digits.length < 4) return digits;
@@ -40,6 +55,39 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, total, count } = useCart();
   const [customer, setCustomer] = useState<CustomerInfo>(emptyCustomer);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.length < 5) { setSuggestions([]); return; }
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=us&limit=5&q=${encodeURIComponent(query)}`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data: NominatimResult[] = await res.json();
+      setSuggestions(data.filter(r => r.address?.house_number && r.address?.road));
+    } catch { setSuggestions([]); }
+  }, []);
+
+  function handleStreetChange(val: string) {
+    setCustomer(c => ({ ...c, street: val }));
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 350);
+    setShowSuggestions(true);
+  }
+
+  function selectSuggestion(r: NominatimResult) {
+    const a = r.address!;
+    const street = `${a.house_number || ''} ${a.road || ''}`.trim();
+    const city = a.city || a.town || a.village || a.suburb || a.county || '';
+    const state = a.state || '';
+    const zip = a.postcode || '';
+    setCustomer(c => ({ ...c, street, city, state, zip }));
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
 
   const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
   const orderTotal = total + shipping;
@@ -181,9 +229,33 @@ export default function CartPage() {
               </h3>
 
               <div className="flex flex-col gap-4">
-                <div>
+                <div className="relative">
                   <label className={labelCls}>Street Address *</label>
-                  <input required autoComplete="street-address" value={customer.street} onChange={set('street')} placeholder="1 Pokemon Way" className={inputCls} style={inputStyle} />
+                  <input
+                    required
+                    autoComplete="off"
+                    value={customer.street}
+                    onChange={e => handleStreetChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                    placeholder="Start typing your address…"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <ul className="absolute z-50 w-full bg-white mt-1 overflow-hidden" style={{ border: '2px solid #000', borderRadius: '4px', boxShadow: '4px 4px 0 #000' }}>
+                      {suggestions.map((r, i) => (
+                        <li
+                          key={i}
+                          onMouseDown={() => selectSuggestion(r)}
+                          className="px-3 py-2 text-xs font-semibold cursor-pointer hover:bg-gray-50 truncate"
+                          style={{ borderBottom: i < suggestions.length - 1 ? '1px solid #eee' : 'none', fontFamily: 'var(--font-nunito), sans-serif' }}
+                        >
+                          {r.display_name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-1">
