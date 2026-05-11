@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, X, Search, Trash2, Star } from 'lucide-react';
+import { Plus, X, Search, Trash2, Star, Package, CreditCard, Award } from 'lucide-react';
 import { Product } from '@/types';
 
 interface TcgCard {
@@ -19,14 +19,20 @@ interface TcgSet {
   images: { symbol: string; logo: string };
 }
 
-const CATEGORIES = ['singles', 'sealed', 'graded'] as const;
+type Category = 'singles' | 'sealed' | 'graded';
+
 const CONDITIONS = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played'];
 const GRADE_COMPANIES = ['PSA', 'BGS', 'CGC'];
+
+const CATEGORY_OPTIONS: { value: Category; label: string; sub: string; icon: React.ElementType }[] = [
+  { value: 'singles', label: 'Singles', sub: 'Individual cards', icon: CreditCard },
+  { value: 'sealed', label: 'Sealed', sub: 'Booster boxes & packs', icon: Package },
+  { value: 'graded', label: 'Graded', sub: 'PSA, BGS, CGC slabs', icon: Award },
+];
 
 const emptyForm = {
   name: '',
   price: '',
-  category: 'singles' as typeof CATEGORIES[number],
   stock: '1',
   set_name: '',
   condition: '',
@@ -39,6 +45,7 @@ const emptyForm = {
 export default function InventoryClient({ initialProducts }: { initialProducts: Product[] }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [showForm, setShowForm] = useState(false);
+  const [category, setCategory] = useState<Category | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [tcgQuery, setTcgQuery] = useState('');
   const [tcgResults, setTcgResults] = useState<TcgCard[]>([]);
@@ -48,8 +55,9 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const isSealed = form.category === 'sealed';
+  const isSealed = category === 'sealed';
 
   const search = useCallback((q: string, sealed: boolean) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -74,7 +82,14 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
     }, 400);
   }, []);
 
-  useEffect(() => { search(tcgQuery, isSealed); }, [tcgQuery, isSealed, search]);
+  useEffect(() => {
+    if (category) search(tcgQuery, isSealed);
+  }, [tcgQuery, isSealed, category, search]);
+
+  // Focus search when category is chosen
+  useEffect(() => {
+    if (category) setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, [category]);
 
   function selectCard(card: TcgCard) {
     setForm(f => ({
@@ -97,9 +112,19 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
     setTcgQuery('');
   }
 
+  function closeForm() {
+    setShowForm(false);
+    setCategory(null);
+    setForm(emptyForm);
+    setTcgQuery('');
+    setTcgResults([]);
+    setSetResults([]);
+    setError('');
+  }
+
   async function handleSave() {
     setError('');
-    if (!form.name || !form.price || !form.category) {
+    if (!form.name || !form.price || !category) {
       setError('Name, price, and category are required.');
       return;
     }
@@ -108,13 +133,12 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, category }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Failed to save.'); return; }
       setProducts(prev => [data.product, ...prev]);
-      setForm(emptyForm);
-      setShowForm(false);
+      closeForm();
     } finally {
       setSaving(false);
     }
@@ -141,6 +165,8 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
     });
   }
 
+  const inputStyle = { border: '2px solid #000', borderRadius: '4px', outline: 'none' };
+
   return (
     <div className="max-w-5xl">
       {/* Header */}
@@ -151,13 +177,15 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
           </h1>
           <p className="text-sm text-gray-500 font-semibold">{products.length} products</p>
         </div>
-        <button
-          onClick={() => { setShowForm(true); setError(''); }}
-          className="flex items-center gap-2 px-5 py-2.5 font-black text-sm uppercase tracking-widest transition-transform hover:translate-x-0.5 hover:translate-y-0.5"
-          style={{ background: 'var(--color-primary)', color: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
-        >
-          <Plus size={16} /> Add Product
-        </button>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-5 py-2.5 font-black text-sm uppercase tracking-widest transition-transform hover:translate-x-0.5 hover:translate-y-0.5"
+            style={{ background: 'var(--color-primary)', color: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
+          >
+            <Plus size={16} /> Add Product
+          </button>
+        )}
       </div>
 
       {/* Add product form */}
@@ -166,236 +194,269 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
           className="mb-8 p-6 relative"
           style={{ background: '#fff', border: '3px solid #000', boxShadow: '6px 6px 0 #000', borderRadius: '4px' }}
         >
-          <div className="flex items-center justify-between mb-5">
+          {/* Form header */}
+          <div className="flex items-center justify-between mb-6">
             <h2 style={{ fontFamily: 'var(--font-bebas), serif', fontSize: '1.5rem', letterSpacing: '0.05em' }}>
               NEW PRODUCT
             </h2>
-            <button onClick={() => { setShowForm(false); setForm(emptyForm); setTcgResults([]); setTcgQuery(''); }}>
+            <button onClick={closeForm} className="text-gray-400 hover:text-black transition-colors">
               <X size={20} />
             </button>
           </div>
 
-          {/* TCG Image Search */}
-          <div className="mb-5">
-            <label className="block text-xs font-black uppercase tracking-widest mb-1.5">
-              {isSealed ? 'Search Pokémon TCG Sets' : 'Search Pokémon TCG Cards'}
-            </label>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={tcgQuery}
-                onChange={e => setTcgQuery(e.target.value)}
-                placeholder={isSealed ? 'e.g. Paldea Evolved, Obsidian Flames...' : 'e.g. Charizard ex, Umbreon VMAX...'}
-                className="w-full pl-9 pr-4 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              />
+          {/* Step 1 — Category */}
+          <div className="mb-6">
+            <p className="text-xs font-black uppercase tracking-widest mb-3 text-gray-500">
+              Step 1 — What type of product?
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {CATEGORY_OPTIONS.map(opt => {
+                const active = category === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setCategory(opt.value); setTcgQuery(''); setTcgResults([]); setSetResults([]); }}
+                    className="flex flex-col items-center gap-2 py-4 px-3 transition-transform hover:translate-x-0.5 hover:translate-y-0.5"
+                    style={{
+                      border: '3px solid #000',
+                      borderRadius: '4px',
+                      boxShadow: active ? 'none' : '3px 3px 0 #000',
+                      background: active ? 'var(--color-primary)' : '#fafafa',
+                      color: active ? '#fff' : '#000',
+                      transform: active ? 'translate(3px, 3px)' : undefined,
+                    }}
+                  >
+                    <opt.icon size={22} />
+                    <div>
+                      <p className="font-black text-sm">{opt.label}</p>
+                      <p className="text-xs opacity-70">{opt.sub}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {tcgLoading && (
-              <p className="text-xs text-gray-400 font-semibold mt-2">Searching...</p>
-            )}
+          {/* Step 2 — TCG Search (unlocks after category) */}
+          {category && (
+            <div className="mb-6">
+              <p className="text-xs font-black uppercase tracking-widest mb-3 text-gray-500">
+                Step 2 — Find the {isSealed ? 'set' : 'card'}
+              </p>
 
-            {tcgResults.length > 0 && (
-              <div className="mt-3 grid grid-cols-5 gap-2 max-h-56 overflow-y-auto pr-1">
-                {tcgResults.map(card => (
-                  <button
-                    key={card.id}
-                    onClick={() => selectCard(card)}
-                    className="group relative flex flex-col items-center gap-1 p-1 transition-transform hover:scale-105"
-                    style={{ border: '2px solid #000', borderRadius: '4px', background: '#fafafa' }}
-                    title={`${card.name} — ${card.set.name}`}
-                  >
-                    <div className="relative w-full aspect-[2.5/3.5]">
-                      <Image src={card.images.small} alt={card.name} fill className="object-contain" sizes="80px" />
-                    </div>
-                    <span className="text-xs font-bold leading-tight text-center line-clamp-2">{card.name}</span>
-                    <span className="text-xs text-gray-400 leading-tight text-center line-clamp-1">{card.set.name}</span>
-                  </button>
-                ))}
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={tcgQuery}
+                  onChange={e => setTcgQuery(e.target.value)}
+                  placeholder={isSealed ? 'e.g. Paldea Evolved, Obsidian Flames...' : 'e.g. Charizard ex, Umbreon VMAX...'}
+                  className="w-full pl-9 pr-4 py-2.5 text-sm font-semibold"
+                  style={inputStyle}
+                />
               </div>
-            )}
 
-            {setResults.length > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
-                {setResults.map(set => (
-                  <button
-                    key={set.id}
-                    onClick={() => selectSet(set)}
-                    className="flex flex-col items-center gap-2 p-3 transition-transform hover:scale-105"
-                    style={{ border: '2px solid #000', borderRadius: '4px', background: '#fafafa' }}
-                    title={`${set.name} — ${set.series}`}
-                  >
-                    <div className="relative w-full h-12">
-                      <Image src={set.images.logo} alt={set.name} fill className="object-contain" sizes="160px" />
-                    </div>
-                    <span className="text-xs font-bold leading-tight text-center">{set.name}</span>
-                    <span className="text-xs text-gray-400 leading-tight text-center">{set.series}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+              {tcgLoading && <p className="text-xs text-gray-400 font-semibold mt-2">Searching...</p>}
 
-            {/* Selected image preview */}
-            {form.image_url && (
-              <div className="mt-3 flex items-center gap-3">
-                <div className="relative w-16 h-24">
-                  <Image src={form.image_url} alt="Selected" fill className="object-contain" sizes="64px" />
+              {/* Card results */}
+              {tcgResults.length > 0 && (
+                <div className="mt-3 grid grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-1">
+                  {tcgResults.map(card => (
+                    <button
+                      key={card.id}
+                      onClick={() => selectCard(card)}
+                      className="flex flex-col items-center gap-1 p-1 transition-transform hover:scale-105"
+                      style={{ border: '2px solid #000', borderRadius: '4px', background: '#fafafa' }}
+                      title={`${card.name} — ${card.set.name}`}
+                    >
+                      <div className="relative w-full aspect-[2.5/3.5]">
+                        <Image src={card.images.small} alt={card.name} fill className="object-contain" sizes="80px" />
+                      </div>
+                      <span className="text-xs font-bold leading-tight text-center line-clamp-2">{card.name}</span>
+                      <span className="text-xs text-gray-400 leading-tight text-center line-clamp-1">{card.set.name}</span>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-green-600">Image selected</p>
+              )}
+
+              {/* Set results */}
+              {setResults.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+                  {setResults.map(set => (
+                    <button
+                      key={set.id}
+                      onClick={() => selectSet(set)}
+                      className="flex flex-col items-center gap-2 p-3 transition-transform hover:scale-105"
+                      style={{ border: '2px solid #000', borderRadius: '4px', background: '#fafafa' }}
+                      title={`${set.name} — ${set.series}`}
+                    >
+                      <div className="relative w-full h-12">
+                        <Image src={set.images.logo} alt={set.name} fill className="object-contain" sizes="160px" />
+                      </div>
+                      <span className="text-xs font-bold leading-tight text-center">{set.name}</span>
+                      <span className="text-xs text-gray-400 leading-tight text-center">{set.series}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Selected image preview */}
+              {form.image_url && (
+                <div className="mt-3 flex items-center gap-3 p-3 rounded" style={{ background: '#f0fdf4', border: '2px solid #bbf7d0' }}>
+                  <div className="relative w-12 h-16 shrink-0">
+                    <Image src={form.image_url} alt="Selected" fill className="object-contain" sizes="48px" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black uppercase tracking-widest text-green-700">Image selected ✓</p>
+                    {form.name && <p className="text-sm font-bold mt-0.5 truncate">{form.name}</p>}
+                    {form.set_name && <p className="text-xs text-gray-500">{form.set_name}</p>}
+                  </div>
                   <button
                     onClick={() => setForm(f => ({ ...f, image_url: '' }))}
-                    className="text-xs text-gray-400 hover:text-red-500 font-semibold mt-1"
+                    className="text-xs text-gray-400 hover:text-red-500 font-semibold shrink-0"
                   >
                     Clear
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Form fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Product Name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Charizard ex Full Art"
-                className="w-full px-3 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              />
+              )}
             </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Price ($) *</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price}
-                onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                placeholder="29.99"
-                className="w-full px-3 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Stock *</label>
-              <input
-                type="number"
-                min="0"
-                value={form.stock}
-                onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
-                className="w-full px-3 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Category *</label>
-              <select
-                value={form.category}
-                onChange={e => { setForm(f => ({ ...f, category: e.target.value as typeof CATEGORIES[number] })); setTcgQuery(''); setTcgResults([]); setSetResults([]); }}
-                className="w-full px-3 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              >
-                {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Set Name</label>
-              <input
-                type="text"
-                value={form.set_name}
-                onChange={e => setForm(f => ({ ...f, set_name: e.target.value }))}
-                placeholder="e.g. Obsidian Flames"
-                className="w-full px-3 py-2.5 text-sm font-semibold"
-                style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-              />
-            </div>
-
-            {form.category === 'singles' && (
-              <div>
-                <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Condition</label>
-                <select
-                  value={form.condition}
-                  onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
-                  className="w-full px-3 py-2.5 text-sm font-semibold"
-                  style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-                >
-                  <option value="">— Select —</option>
-                  {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            )}
-
-            {form.category === 'graded' && (
-              <>
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Grade</label>
-                  <input
-                    type="text"
-                    value={form.grade}
-                    onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}
-                    placeholder="e.g. 10"
-                    className="w-full px-3 py-2.5 text-sm font-semibold"
-                    style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Grade Company</label>
-                  <select
-                    value={form.grade_company}
-                    onChange={e => setForm(f => ({ ...f, grade_company: e.target.value }))}
-                    className="w-full px-3 py-2.5 text-sm font-semibold"
-                    style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
-                  >
-                    <option value="">— Select —</option>
-                    {GRADE_COMPANIES.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-              </>
-            )}
-
-            <div className="col-span-2 flex items-center gap-2 mt-1">
-              <input
-                id="featured"
-                type="checkbox"
-                checked={form.featured}
-                onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))}
-                className="w-4 h-4"
-                style={{ accentColor: 'var(--color-primary)' }}
-              />
-              <label htmlFor="featured" className="text-sm font-bold">Feature on homepage</label>
-            </div>
-          </div>
-
-          {error && (
-            <p className="mt-4 text-sm font-bold text-red-600">{error}</p>
           )}
 
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2.5 font-black text-sm uppercase tracking-widest transition-transform hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50"
-              style={{ background: 'var(--color-primary)', color: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
-            >
-              {saving ? 'Saving...' : 'Save Product'}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setForm(emptyForm); setTcgResults([]); setTcgQuery(''); }}
-              className="px-6 py-2.5 font-black text-sm uppercase tracking-widest"
-              style={{ background: '#fff', border: '3px solid #000', borderRadius: '4px' }}
-            >
-              Cancel
-            </button>
-          </div>
+          {/* Step 3 — Details (unlocks after category is chosen) */}
+          {category && (
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest mb-3 text-gray-500">
+                Step 3 — Details
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Product Name *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder={isSealed ? 'e.g. Paldea Evolved Booster Box' : 'e.g. Charizard ex Full Art'}
+                    className="w-full px-3 py-2.5 text-sm font-semibold"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Price ($) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.price}
+                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                    placeholder="29.99"
+                    className="w-full px-3 py-2.5 text-sm font-semibold"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Stock *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.stock}
+                    onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm font-semibold"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Set Name</label>
+                  <input
+                    type="text"
+                    value={form.set_name}
+                    onChange={e => setForm(f => ({ ...f, set_name: e.target.value }))}
+                    placeholder="e.g. Obsidian Flames"
+                    className="w-full px-3 py-2.5 text-sm font-semibold"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {category === 'singles' && (
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Condition</label>
+                    <select
+                      value={form.condition}
+                      onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
+                      className="w-full px-3 py-2.5 text-sm font-semibold"
+                      style={inputStyle}
+                    >
+                      <option value="">— Select —</option>
+                      {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {category === 'graded' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Grade</label>
+                      <input
+                        type="text"
+                        value={form.grade}
+                        onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}
+                        placeholder="e.g. 10"
+                        className="w-full px-3 py-2.5 text-sm font-semibold"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Grade Company</label>
+                      <select
+                        value={form.grade_company}
+                        onChange={e => setForm(f => ({ ...f, grade_company: e.target.value }))}
+                        className="w-full px-3 py-2.5 text-sm font-semibold"
+                        style={inputStyle}
+                      >
+                        <option value="">— Select —</option>
+                        {GRADE_COMPANIES.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div className="col-span-2 flex items-center gap-2">
+                  <input
+                    id="featured"
+                    type="checkbox"
+                    checked={form.featured}
+                    onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))}
+                    className="w-4 h-4"
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                  <label htmlFor="featured" className="text-sm font-bold">Feature on homepage</label>
+                </div>
+              </div>
+
+              {error && <p className="mt-4 text-sm font-bold text-red-600">{error}</p>}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-2.5 font-black text-sm uppercase tracking-widest transition-transform hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50"
+                  style={{ background: 'var(--color-primary)', color: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
+                >
+                  {saving ? 'Saving...' : 'Save Product'}
+                </button>
+                <button
+                  onClick={closeForm}
+                  className="px-6 py-2.5 font-black text-sm uppercase tracking-widest"
+                  style={{ background: '#fff', border: '3px solid #000', borderRadius: '4px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -451,15 +512,8 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
                   <td className="px-4 py-2 font-bold">${p.price.toFixed(2)}</td>
                   <td className="px-4 py-2 font-bold">{p.stock}</td>
                   <td className="px-4 py-2">
-                    <button
-                      onClick={() => toggleFeatured(p)}
-                      title={p.featured ? 'Remove from featured' : 'Add to featured'}
-                    >
-                      <Star
-                        size={18}
-                        fill={p.featured ? 'var(--color-yellow)' : 'none'}
-                        stroke={p.featured ? '#000' : '#ccc'}
-                      />
+                    <button onClick={() => toggleFeatured(p)} title={p.featured ? 'Remove from featured' : 'Add to featured'}>
+                      <Star size={18} fill={p.featured ? 'var(--color-yellow)' : 'none'} stroke={p.featured ? '#000' : '#ccc'} />
                     </button>
                   </td>
                   <td className="px-4 py-2">
