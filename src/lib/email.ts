@@ -45,7 +45,7 @@ function baseTemplate(body: string) {
           ${body}
         </div>
         <p style="text-align:center;color:#999;font-size:11px;margin-top:24px">
-          Chingle Grumpus · Questions? Reply to this email.<br>
+          Chingle Grumpus · Questions? Email us at <a href="mailto:support@chinglegrumpus.com" style="color:#999">support@chinglegrumpus.com</a><br>
           You received this because you placed an order.
         </p>
       </div>
@@ -107,7 +107,7 @@ export async function sendOrderConfirmation(params: {
     </p>
   `);
 
-  return getResend().emails.send({ from: FROM, to, subject: `Order Confirmed — ${orderTag}`, html });
+  return getResend().emails.send({ from: FROM, replyTo: 'support@chinglegrumpus.com', to, subject: `Order Confirmed — ${orderTag}`, html });
 }
 
 export async function sendShippingConfirmation(params: {
@@ -153,5 +153,5 @@ export async function sendShippingConfirmation(params: {
     </p>
   `);
 
-  return getResend().emails.send({ from: FROM, to, subject: `Your order has shipped — ${orderTag}`, html });
+  return getResend().emails.send({ from: FROM, replyTo: 'support@chinglegrumpus.com', to, subject: `Your order has shipped — ${orderTag}`, html });
 }

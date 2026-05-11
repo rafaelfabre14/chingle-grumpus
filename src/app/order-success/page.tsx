@@ -12,6 +12,7 @@ function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const { clearCart } = useCart();
+  const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [email, setEmail] = useState('');
   const [subStatus, setSubStatus] = useState<'idle' | 'loading' | 'done'>('idle');
@@ -23,7 +24,9 @@ function OrderSuccessContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
-      });
+      })
+        .then(r => r.json())
+        .then(d => { if (d.orderNumber) setOrderNumber(d.orderNumber); });
     }
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -65,9 +68,9 @@ function OrderSuccessContent() {
           ORDER CONFIRMED!<br />YOU&apos;RE A TRUE COLLECTOR.
         </h1>
 
-        {sessionId && (
-          <p className="text-xs text-gray-400 mb-6 font-mono break-all">
-            Order #{sessionId.slice(-8).toUpperCase()}
+        {orderNumber && (
+          <p className="text-sm font-bold mb-6 font-mono" style={{ color: 'var(--color-dark)', letterSpacing: '0.05em' }}>
+            Order {`CG-${String(orderNumber).padStart(6, '0')}`}
           </p>
         )}
 
