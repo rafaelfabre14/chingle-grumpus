@@ -17,14 +17,16 @@ export async function PATCH(req: NextRequest) {
       .eq('id', id)
       .single();
 
-    if (order?.customer_email && order?.customer_name && order?.order_number) {
+    if (order?.customer_email && order?.order_number) {
       await sendShippingConfirmation({
         to: order.customer_email,
         orderNumber: order.order_number,
-        customerName: order.customer_name,
+        customerName: order.customer_name || order.customer_email,
         items: order.items ?? [],
         trackingNumber: tracking_number,
       }).catch(err => console.error('Shipping email failed:', err));
+    } else {
+      console.error('Skipping shipping email — missing:', { email: order?.customer_email, orderNumber: order?.order_number });
     }
   }
 

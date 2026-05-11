@@ -50,15 +50,17 @@ export async function POST(req: NextRequest) {
       .select('order_number')
       .single();
 
-    if (customerEmail && customerName && order?.order_number) {
+    if (customerEmail && order?.order_number) {
       await sendOrderConfirmation({
         to: customerEmail,
         orderNumber: order.order_number,
-        customerName,
+        customerName: customerName || customerEmail,
         items,
         total,
         shippingAddress: shippingAddress ?? { street: '', city: '', state: '', zip: '' },
       }).catch(err => console.error('Confirmation email failed:', err));
+    } else {
+      console.error('Skipping order confirmation email — missing:', { customerEmail, orderNumber: order?.order_number });
     }
   }
 
