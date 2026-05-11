@@ -14,13 +14,15 @@ const pastWinners = [
 export default async function GiveawayPage() {
   const supabase = await createClient();
 
-  // Current prize: first featured product
-  const { data: prize } = await supabase
-    .from('products')
-    .select('*')
-    .eq('featured', true)
-    .limit(1)
+  const { data: config } = await supabase
+    .from('giveaway_config')
+    .select('active_prize_product_id')
+    .eq('id', 1)
     .single();
+
+  const { data: prize } = config?.active_prize_product_id
+    ? await supabase.from('products').select('*').eq('id', config.active_prize_product_id).single()
+    : { data: null };
 
   return (
     <div style={{ background: 'var(--color-light)', minHeight: '100vh' }}>

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Radio, ExternalLink } from 'lucide-react';
+import { Radio, ExternalLink, Zap } from 'lucide-react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 
 interface LiveDrop {
@@ -12,7 +13,17 @@ interface LiveDrop {
   stream_url: string | null;
 }
 
-export default function LiveDropControl({ liveDrop }: { liveDrop: LiveDrop | null }) {
+interface Product {
+  id: string;
+  name: string;
+  image_url: string | null;
+  category: string;
+  price: number;
+  is_live_drop: boolean;
+}
+
+export default function LiveDropControl({ liveDrop, products: initialProducts }: { liveDrop: LiveDrop | null; products: Product[] }) {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const router = useRouter();
   const supabase = createClient();
 
@@ -25,6 +36,16 @@ export default function LiveDropControl({ liveDrop }: { liveDrop: LiveDrop | nul
   const [streamUrl, setStreamUrl] = useState(liveDrop?.stream_url ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function toggleProduct(id: string, current: boolean) {
+    const updated = !current;
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, is_live_drop: updated } : p));
+    await fetch('/api/admin/live-products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_live_drop: updated }),
+    });
+  }
 
   async function handleToggleLive() {
     setSaving(true);
@@ -172,6 +193,58 @@ export default function LiveDropControl({ liveDrop }: { liveDrop: LiveDrop | nul
           {saved ? '✓ SAVED' : saving ? 'SAVING...' : 'SAVE CHANGES'}
         </button>
       </form>
+
+      {/* Live drop products */}
+      <div
+        className="overflow-hidden"
+        style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
+      >
+        <div className="px-6 py-4" style={{ borderBottom: '3px solid #000', background: '#f5f0e8' }}>
+          <h2 style={{ fontFamily: 'var(--font-bebas), serif', fontSize: '1.5rem', letterSpacing: '0.05em' }}>
+            LIVE DROP PRODUCTS
+          </h2>
+          <p className="text-xs text-gray-500 font-semibold mt-0.5">
+            Toggle which products appear on the live page during a stream. {products.filter(p => p.is_live_drop).length} active.
+          </p>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {products.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 font-semibold text-sm">
+              No products in inventory yet.
+            </div>
+          ) : (
+            products.map(product => (
+              <div key={product.id} className="flex items-center gap-4 px-6 py-3">
+                <div className="relative w-9 h-12 shrink-0">
+                  {product.image_url ? (
+                    <Image src={product.image_url} alt={product.name} fill className="object-contain" sizes="36px" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm leading-tight truncate">{product.name}</p>
+                  <p className="text-xs text-gray-400 font-semibold capitalize">{product.category} · ${product.price.toFixed(2)}</p>
+                </div>
+                <button
+                  onClick={() => toggleProduct(product.id, product.is_live_drop)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-widest shrink-0 transition-transform hover:translate-x-0.5 hover:translate-y-0.5"
+                  style={{
+                    background: product.is_live_drop ? 'var(--color-primary)' : '#fff',
+                    color: product.is_live_drop ? '#fff' : '#000',
+                    border: `2px solid ${product.is_live_drop ? 'var(--color-primary)' : '#000'}`,
+                    boxShadow: product.is_live_drop ? 'none' : '2px 2px 0 #000',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <Zap size={11} fill={product.is_live_drop ? '#fff' : 'none'} />
+                  {product.is_live_drop ? 'In Drop' : 'Add'}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

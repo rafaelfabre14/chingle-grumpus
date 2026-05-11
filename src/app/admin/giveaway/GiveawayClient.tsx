@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
-import { Trophy, Users, Gift, CheckCircle, Mail, RotateCcw } from 'lucide-react';
+import { Trophy, Users, Gift, CheckCircle, Mail, RotateCcw, Save } from 'lucide-react';
 
 interface Entry {
   id: string;
@@ -49,17 +49,24 @@ export default function GiveawayClient({
   initialEntries,
   initialWinners,
   products,
+  initialActivePrizeId,
 }: {
   initialEntries: Entry[];
   initialWinners: Winner[];
   products: Product[];
+  initialActivePrizeId: string | null;
 }) {
   const [entries] = useState<Entry[]>(initialEntries);
   const [winners, setWinners] = useState<Winner[]>(initialWinners);
   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
-  const [prizeId, setPrizeId] = useState('');
+  const [drawPrizeId, setDrawPrizeId] = useState('');
   const [drawing, setDrawing] = useState(false);
   const [drawError, setDrawError] = useState('');
+
+  // Active prize state (what the public giveaway page shows)
+  const [activePrizeId, setActivePrizeId] = useState(initialActivePrizeId ?? '');
+  const [savingPrize, setSavingPrize] = useState(false);
+  const [prizeSaved, setPrizeSaved] = useState(false);
 
   const weeks = useMemo(() => {
     const set = new Set(entries.map(e => e.week_of));
@@ -70,6 +77,23 @@ export default function GiveawayClient({
   const weekWinner = winners.find(w => w.week_of === selectedWeek);
   const pastWinners = winners.filter(w => w.week_of !== selectedWeek);
 
+  const activePrizeProduct = products.find(p => p.id === activePrizeId);
+
+  async function saveActivePrize() {
+    setSavingPrize(true);
+    try {
+      await fetch('/api/admin/giveaway-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active_prize_product_id: activePrizeId || null }),
+      });
+      setPrizeSaved(true);
+      setTimeout(() => setPrizeSaved(false), 2000);
+    } finally {
+      setSavingPrize(false);
+    }
+  }
+
   async function drawWinner() {
     setDrawError('');
     setDrawing(true);
@@ -77,14 +101,11 @@ export default function GiveawayClient({
       const res = await fetch('/api/admin/giveaway', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ week_of: selectedWeek, prize_product_id: prizeId || null }),
+        body: JSON.stringify({ week_of: selectedWeek, prize_product_id: drawPrizeId || activePrizeId || null }),
       });
       const data = await res.json();
       if (!res.ok) { setDrawError(data.error ?? 'Failed to draw winner.'); return; }
-      setWinners(prev => {
-        const filtered = prev.filter(w => w.week_of !== selectedWeek);
-        return [data.winner, ...filtered];
-      });
+      setWinners(prev => [data.winner, ...prev.filter(w => w.week_of !== selectedWeek)]);
     } finally {
       setDrawing(false);
     }
@@ -101,34 +122,77 @@ export default function GiveawayClient({
     });
   }
 
-  async function redraw() {
-    if (!confirm('Redraw a new winner for this week?')) return;
-    await drawWinner();
-  }
-
   const inputStyle = { border: '2px solid #000', borderRadius: '4px', outline: 'none' };
+  const cardStyle = { background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' };
 
   return (
     <div className="max-w-5xl">
-      {/* Header */}
       <div className="mb-8">
-        <h1 style={{ fontFamily: 'var(--font-bebas), serif', fontSize: '2.5rem', letterSpacing: '0.05em' }}>
-          GIVEAWAY
-        </h1>
+        <h1 style={{ fontFamily: 'var(--font-bebas), serif', fontSize: '2.5rem', letterSpacing: '0.05em' }}>GIVEAWAY</h1>
         <p className="text-sm text-gray-500 font-semibold">
           {entries.length} total entries · {winners.length} winners drawn
         </p>
       </div>
 
+      {/* Active prize — what the public page shows */}
+      <div className="mb-6 p-5" style={cardStyle}>
+        <p className="text-xs font-black uppercase tracking-widest mb-1 flex items-center gap-2">
+          <Gift size={13} /> Active Prize <span className="text-gray-400 font-semibold normal-case tracking-normal">— shown on the public giveaway page</span>
+        </p>
+        <p className="text-xs text-gray-400 font-semibold mb-4">Set this first. It updates the site immediately.</p>
+
+        <div className="flex items-end gap-4">
+          <div className="flex-1">
+            <select
+              value={activePrizeId}
+              onChange={e => { setActivePrizeId(e.target.value); setPrizeSaved(false); }}
+              className="w-full px-3 py-2.5 text-sm font-semibold"
+              style={inputStyle}
+            >
+              <option value="">— No active prize —</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={saveActivePrize}
+            disabled={savingPrize}
+            className="flex items-center gap-2 px-5 py-2.5 font-black text-sm uppercase tracking-widest shrink-0 transition-transform hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50"
+            style={{
+              background: prizeSaved ? '#22c55e' : 'var(--color-dark)',
+              color: '#fff',
+              border: '3px solid #000',
+              boxShadow: '3px 3px 0 #000',
+              borderRadius: '4px',
+            }}
+          >
+            <Save size={13} />
+            {prizeSaved ? 'Saved!' : savingPrize ? 'Saving...' : 'Save Prize'}
+          </button>
+        </div>
+
+        {activePrizeProduct && (
+          <div className="mt-4 flex items-center gap-3 p-3 rounded" style={{ background: '#f0fdf4', border: '2px solid #bbf7d0' }}>
+            {activePrizeProduct.image_url && (
+              <div className="relative w-10 h-14 shrink-0">
+                <Image src={activePrizeProduct.image_url} alt={activePrizeProduct.name} fill className="object-contain" sizes="40px" />
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-green-700">Live on site ✓</p>
+              <p className="text-sm font-bold mt-0.5">{activePrizeProduct.name}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left col — week picker + draw */}
+        {/* Left col */}
         <div className="lg:col-span-1 flex flex-col gap-5">
 
           {/* Week selector */}
-          <div
-            className="p-5"
-            style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
-          >
+          <div className="p-5" style={cardStyle}>
             <p className="text-xs font-black uppercase tracking-widest mb-3">Week</p>
             <select
               value={selectedWeek}
@@ -141,61 +205,40 @@ export default function GiveawayClient({
                 <option key={w} value={w}>{formatWeek(w)}</option>
               ))}
             </select>
-
             <div className="flex items-center gap-2 mt-3">
-              <div
-                className="w-8 h-8 flex items-center justify-center rounded"
-                style={{ background: 'var(--color-electric)', border: '2px solid #000' }}
-              >
+              <div className="w-8 h-8 flex items-center justify-center rounded" style={{ background: 'var(--color-electric)', border: '2px solid #000' }}>
                 <Users size={14} color="#fff" />
               </div>
               <div>
-                <p className="text-2xl font-black leading-none" style={{ fontFamily: 'var(--font-bebas), serif' }}>
-                  {weekEntries.length}
-                </p>
+                <p className="text-2xl font-black leading-none" style={{ fontFamily: 'var(--font-bebas), serif' }}>{weekEntries.length}</p>
                 <p className="text-xs text-gray-400 font-semibold">entries this week</p>
               </div>
             </div>
           </div>
 
-          {/* Prize picker */}
-          <div
-            className="p-5"
-            style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
-          >
+          {/* Draw winner */}
+          <div className="p-5" style={cardStyle}>
             <p className="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2">
-              <Gift size={13} /> Prize
+              <Trophy size={13} /> Draw Winner
+            </p>
+            <p className="text-xs text-gray-400 font-semibold mb-3">
+              Override prize for this draw only (optional — defaults to active prize above).
             </p>
             <select
-              value={prizeId}
-              onChange={e => setPrizeId(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm font-semibold"
+              value={drawPrizeId}
+              onChange={e => setDrawPrizeId(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm font-semibold mb-4"
               style={inputStyle}
             >
-              <option value="">— No prize set —</option>
+              <option value="">Use active prize</option>
               {products.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
 
-            {prizeId && (() => {
-              const p = products.find(p => p.id === prizeId);
-              return p?.image_url ? (
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="relative w-10 h-14 shrink-0">
-                    <Image src={p.image_url} alt={p.name} fill className="object-contain" sizes="40px" />
-                  </div>
-                  <p className="text-xs font-bold leading-tight">{p.name}</p>
-                </div>
-              ) : null;
-            })()}
-          </div>
-
-          {/* Draw button */}
-          <div>
             {weekWinner ? (
               <button
-                onClick={redraw}
+                onClick={() => { if (confirm('Redraw a new winner for this week?')) drawWinner(); }}
                 className="w-full flex items-center justify-center gap-2 py-3 font-black text-sm uppercase tracking-widest"
                 style={{ background: '#fff', border: '3px solid #000', borderRadius: '4px' }}
               >
@@ -216,22 +259,16 @@ export default function GiveawayClient({
           </div>
         </div>
 
-        {/* Right col — winner + entries */}
+        {/* Right col */}
         <div className="lg:col-span-2 flex flex-col gap-5">
 
           {/* This week's winner */}
-          <div
-            className="p-5"
-            style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px' }}
-          >
+          <div className="p-5" style={cardStyle}>
             <p className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2">
               <Trophy size={13} /> This Week&apos;s Winner
             </p>
-
             {!weekWinner ? (
-              <div className="py-8 text-center text-gray-400 font-semibold text-sm">
-                No winner drawn yet for this week.
-              </div>
+              <div className="py-8 text-center text-gray-400 font-semibold text-sm">No winner drawn yet for this week.</div>
             ) : (
               <div className="flex items-start gap-4">
                 {weekWinner.prize?.image_url && (
@@ -241,13 +278,7 @@ export default function GiveawayClient({
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className="px-2 py-0.5 text-xs font-bold rounded"
-                      style={{
-                        background: STATUS_FLOW[weekWinner.status].color,
-                        border: '1px solid #000',
-                      }}
-                    >
+                    <span className="px-2 py-0.5 text-xs font-bold rounded" style={{ background: STATUS_FLOW[weekWinner.status].color, border: '1px solid #000' }}>
                       {STATUS_FLOW[weekWinner.status].label.toUpperCase()}
                     </span>
                     <span className="text-xs text-gray-400">{formatWeek(weekWinner.week_of)}</span>
@@ -256,9 +287,7 @@ export default function GiveawayClient({
                     {weekWinner.entry?.first_name ?? '—'}
                   </p>
                   <p className="text-sm text-gray-500 font-semibold">{weekWinner.entry?.email ?? '—'}</p>
-                  {weekWinner.prize && (
-                    <p className="text-xs text-gray-400 mt-1">Prize: {weekWinner.prize.name}</p>
-                  )}
+                  {weekWinner.prize && <p className="text-xs text-gray-400 mt-1">Prize: {weekWinner.prize.name}</p>}
                   <div className="flex gap-2 mt-3">
                     {weekWinner.entry?.email && (
                       <a
@@ -285,18 +314,14 @@ export default function GiveawayClient({
           </div>
 
           {/* Entries list */}
-          <div
-            style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px', overflow: 'hidden' }}
-          >
+          <div style={{ ...cardStyle, overflow: 'hidden' }}>
             <div className="px-5 py-3" style={{ borderBottom: '3px solid #000', background: '#f5f0e8' }}>
               <p className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <Users size={13} /> Entries — {formatWeek(selectedWeek)} ({weekEntries.length})
               </p>
             </div>
             {weekEntries.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 font-semibold text-sm">
-                No entries for this week yet.
-              </div>
+              <div className="p-8 text-center text-gray-400 font-semibold text-sm">No entries for this week yet.</div>
             ) : (
               <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
                 {weekEntries.map(entry => (
@@ -309,9 +334,7 @@ export default function GiveawayClient({
                       {weekWinner?.entry?.email === entry.email && (
                         <span className="text-xs font-black text-yellow-600">🏆 WINNER</span>
                       )}
-                      <p className="text-xs text-gray-400">
-                        {new Date(entry.created_at).toLocaleDateString()}
-                      </p>
+                      <p className="text-xs text-gray-400">{new Date(entry.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
                 ))}
@@ -323,10 +346,7 @@ export default function GiveawayClient({
 
       {/* Past winners */}
       {pastWinners.length > 0 && (
-        <div
-          className="mt-8"
-          style={{ background: '#fff', border: '3px solid #000', boxShadow: '4px 4px 0 #000', borderRadius: '4px', overflow: 'hidden' }}
-        >
+        <div className="mt-8" style={{ ...cardStyle, overflow: 'hidden' }}>
           <div className="px-5 py-3" style={{ borderBottom: '3px solid #000', background: '#f5f0e8' }}>
             <p className="text-xs font-black uppercase tracking-widest">Past Winners</p>
           </div>
@@ -346,10 +366,7 @@ export default function GiveawayClient({
                   <td className="px-5 py-3 text-xs text-gray-500">{w.entry?.email ?? '—'}</td>
                   <td className="px-5 py-3 text-xs text-gray-500">{w.prize?.name ?? '—'}</td>
                   <td className="px-5 py-3">
-                    <span
-                      className="px-2 py-0.5 text-xs font-bold rounded"
-                      style={{ background: STATUS_FLOW[w.status].color, border: '1px solid #000' }}
-                    >
+                    <span className="px-2 py-0.5 text-xs font-bold rounded" style={{ background: STATUS_FLOW[w.status].color, border: '1px solid #000' }}>
                       {STATUS_FLOW[w.status].label.toUpperCase()}
                     </span>
                   </td>
