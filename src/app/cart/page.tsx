@@ -29,6 +29,13 @@ function isComplete(c: CustomerInfo) {
   return !!(c.firstName && c.lastName && c.email && c.street && c.city && c.state && c.zip);
 }
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (digits.length < 4) return digits;
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total, count } = useCart();
   const [customer, setCustomer] = useState<CustomerInfo>(emptyCustomer);
@@ -40,6 +47,18 @@ export default function CartPage() {
   function set(field: keyof CustomerInfo) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
       setCustomer(c => ({ ...c, [field]: e.target.value }));
+  }
+
+  function setPhone(e: React.ChangeEvent<HTMLInputElement>) {
+    setCustomer(c => ({ ...c, phone: formatPhone(e.target.value) }));
+  }
+
+  function setState(e: React.ChangeEvent<HTMLInputElement>) {
+    setCustomer(c => ({ ...c, state: e.target.value.toUpperCase().slice(0, 2) }));
+  }
+
+  function setZip(e: React.ChangeEvent<HTMLInputElement>) {
+    setCustomer(c => ({ ...c, zip: e.target.value.replace(/\D/g, '').slice(0, 5) }));
   }
 
   async function handleCheckout(e: React.FormEvent) {
@@ -153,7 +172,7 @@ export default function CartPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Phone</label>
-                  <input type="tel" value={customer.phone} onChange={set('phone')} placeholder="(555) 000-0000" className={inputCls} style={inputStyle} />
+                  <input type="tel" value={customer.phone} onChange={setPhone} placeholder="(555) 000-0000" className={inputCls} style={inputStyle} />
                 </div>
               </div>
 
@@ -173,11 +192,11 @@ export default function CartPage() {
                   </div>
                   <div>
                     <label className={labelCls}>State *</label>
-                    <input required value={customer.state} onChange={set('state')} placeholder="CA" maxLength={2} className={inputCls} style={inputStyle} />
+                    <input required value={customer.state} onChange={setState} placeholder="CA" maxLength={2} className={inputCls} style={inputStyle} />
                   </div>
                   <div>
                     <label className={labelCls}>ZIP *</label>
-                    <input required value={customer.zip} onChange={set('zip')} placeholder="90210" className={inputCls} style={inputStyle} />
+                    <input required value={customer.zip} onChange={setZip} placeholder="90210" inputMode="numeric" className={inputCls} style={inputStyle} />
                   </div>
                 </div>
               </div>
