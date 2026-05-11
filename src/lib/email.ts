@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!);
+  return _resend;
+}
 const FROM = 'Chingle Grumpus <noreply@maticusa.com>';
 
 interface OrderItem {
@@ -103,7 +107,7 @@ export async function sendOrderConfirmation(params: {
     </p>
   `);
 
-  return resend.emails.send({ from: FROM, to, subject: `Order Confirmed — ${orderTag}`, html });
+  return getResend().emails.send({ from: FROM, to, subject: `Order Confirmed — ${orderTag}`, html });
 }
 
 export async function sendShippingConfirmation(params: {
@@ -149,5 +153,5 @@ export async function sendShippingConfirmation(params: {
     </p>
   `);
 
-  return resend.emails.send({ from: FROM, to, subject: `Your order has shipped — ${orderTag}`, html });
+  return getResend().emails.send({ from: FROM, to, subject: `Your order has shipped — ${orderTag}`, html });
 }
