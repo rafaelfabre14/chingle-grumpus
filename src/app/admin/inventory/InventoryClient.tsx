@@ -12,6 +12,13 @@ interface TcgCard {
   images: { small: string; large: string };
 }
 
+interface TcgSet {
+  id: string;
+  name: string;
+  series: string;
+  images: { symbol: string; logo: string };
+}
+
 const CATEGORIES = ['singles', 'sealed', 'graded'] as const;
 const CONDITIONS = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played'];
 const GRADE_COMPANIES = ['PSA', 'BGS', 'CGC'];
@@ -35,28 +42,39 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
   const [form, setForm] = useState(emptyForm);
   const [tcgQuery, setTcgQuery] = useState('');
   const [tcgResults, setTcgResults] = useState<TcgCard[]>([]);
+  const [setResults, setSetResults] = useState<TcgSet[]>([]);
   const [tcgLoading, setTcgLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const searchTcg = useCallback((q: string) => {
+  const isSealed = form.category === 'sealed';
+
+  const search = useCallback((q: string, sealed: boolean) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (q.trim().length < 2) { setTcgResults([]); return; }
+    if (q.trim().length < 2) { setTcgResults([]); setSetResults([]); return; }
     debounceRef.current = setTimeout(async () => {
       setTcgLoading(true);
       try {
-        const res = await fetch(`/api/admin/tcg-search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        setTcgResults(data.cards ?? []);
+        if (sealed) {
+          const res = await fetch(`/api/admin/tcg-sets?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          setSetResults(data.sets ?? []);
+          setTcgResults([]);
+        } else {
+          const res = await fetch(`/api/admin/tcg-search?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          setTcgResults(data.cards ?? []);
+          setSetResults([]);
+        }
       } finally {
         setTcgLoading(false);
       }
     }, 400);
   }, []);
 
-  useEffect(() => { searchTcg(tcgQuery); }, [tcgQuery, searchTcg]);
+  useEffect(() => { search(tcgQuery, isSealed); }, [tcgQuery, isSealed, search]);
 
   function selectCard(card: TcgCard) {
     setForm(f => ({
@@ -66,6 +84,16 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
       image_url: card.images.large,
     }));
     setTcgResults([]);
+    setTcgQuery('');
+  }
+
+  function selectSet(set: TcgSet) {
+    setForm(f => ({
+      ...f,
+      set_name: f.set_name || set.name,
+      image_url: set.images.logo,
+    }));
+    setSetResults([]);
     setTcgQuery('');
   }
 
@@ -149,14 +177,16 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
 
           {/* TCG Image Search */}
           <div className="mb-5">
-            <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Search Pokémon TCG</label>
+            <label className="block text-xs font-black uppercase tracking-widest mb-1.5">
+              {isSealed ? 'Search Pokémon TCG Sets' : 'Search Pokémon TCG Cards'}
+            </label>
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={tcgQuery}
                 onChange={e => setTcgQuery(e.target.value)}
-                placeholder="e.g. Charizard ex, Umbreon VMAX..."
+                placeholder={isSealed ? 'e.g. Paldea Evolved, Obsidian Flames...' : 'e.g. Charizard ex, Umbreon VMAX...'}
                 className="w-full pl-9 pr-4 py-2.5 text-sm font-semibold"
                 style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
               />
@@ -181,6 +211,26 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
                     </div>
                     <span className="text-xs font-bold leading-tight text-center line-clamp-2">{card.name}</span>
                     <span className="text-xs text-gray-400 leading-tight text-center line-clamp-1">{card.set.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {setResults.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+                {setResults.map(set => (
+                  <button
+                    key={set.id}
+                    onClick={() => selectSet(set)}
+                    className="flex flex-col items-center gap-2 p-3 transition-transform hover:scale-105"
+                    style={{ border: '2px solid #000', borderRadius: '4px', background: '#fafafa' }}
+                    title={`${set.name} — ${set.series}`}
+                  >
+                    <div className="relative w-full h-12">
+                      <Image src={set.images.logo} alt={set.name} fill className="object-contain" sizes="160px" />
+                    </div>
+                    <span className="text-xs font-bold leading-tight text-center">{set.name}</span>
+                    <span className="text-xs text-gray-400 leading-tight text-center">{set.series}</span>
                   </button>
                 ))}
               </div>
@@ -249,7 +299,7 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
               <label className="block text-xs font-black uppercase tracking-widest mb-1.5">Category *</label>
               <select
                 value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value as typeof CATEGORIES[number] }))}
+                onChange={e => { setForm(f => ({ ...f, category: e.target.value as typeof CATEGORIES[number] })); setTcgQuery(''); setTcgResults([]); setSetResults([]); }}
                 className="w-full px-3 py-2.5 text-sm font-semibold"
                 style={{ border: '2px solid #000', borderRadius: '4px', outline: 'none' }}
               >
