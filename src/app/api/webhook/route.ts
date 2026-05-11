@@ -35,32 +35,54 @@ export async function POST(req: NextRequest) {
     const total = session.amount_total ? session.amount_total / 100 : 0;
 
     const supabase = createServiceClient();
-    const { data: order } = await supabase
+
+    const { data: existing } = await supabase
       .from('orders')
-      .insert({
-        stripe_session_id: session.id,
-        customer_email: customerEmail,
-        customer_name: customerName,
+      .select('order_number, customer_email')
+      .eq('stripe_session_id', session.id)
+      .maybeSingle();
+
+    let orderNumber = existing?.order_number ?? null;
+
+    if (!existing) {
+      const { data: inserted } = await supabase
+        .from('orders')
+        .insert({
+          stripe_session_id: session.id,
+          customer_email: customerEmail,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          shipping_address: shippingAddress,
+          items,
+          total,
+          status: 'paid',
+        })
+        .select('order_number')
+        .single();
+      orderNumber = inserted?.order_number ?? null;
+    } else {
+      // Update customer fields in case the fallback route inserted before webhook arrived
+      await supabase.from('orders').update({
+        customer_name: customerName || existing.customer_email,
         customer_phone: customerPhone,
         shipping_address: shippingAddress,
         items,
-        total,
         status: 'paid',
-      })
-      .select('order_number')
-      .single();
+      }).eq('stripe_session_id', session.id);
+    }
 
-    if (customerEmail && order?.order_number) {
+    const emailTo = customerEmail || existing?.customer_email || '';
+    if (emailTo && orderNumber) {
       await sendOrderConfirmation({
-        to: customerEmail,
-        orderNumber: order.order_number,
-        customerName: customerName || customerEmail,
+        to: emailTo,
+        orderNumber,
+        customerName: customerName || emailTo,
         items,
         total,
         shippingAddress: shippingAddress ?? { street: '', city: '', state: '', zip: '' },
       }).catch(err => console.error('Confirmation email failed:', err));
     } else {
-      console.error('Skipping order confirmation email — missing:', { customerEmail, orderNumber: order?.order_number });
+      console.error('Skipping confirmation email — missing:', { emailTo, orderNumber });
     }
   }
 
