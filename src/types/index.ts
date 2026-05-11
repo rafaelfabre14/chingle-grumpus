@@ -48,8 +48,12 @@ export interface EmailSignup {
 
 export interface Order {
   id: string;
+  order_number: number | null;
   stripe_session_id: string;
   customer_email: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  shipping_address: { street: string; city: string; state: string; zip: string } | null;
   items: CartItem[];
   total: number;
   status: OrderStatus;
