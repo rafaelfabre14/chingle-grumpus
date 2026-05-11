@@ -29,6 +29,18 @@ export default function LiveBanner() {
 
   if (!liveDrop) return null;
 
+  function nextSundayISO() {
+    const d = new Date();
+    const daysUntilSunday = (7 - d.getUTCDay()) % 7 || 7;
+    d.setUTCDate(d.getUTCDate() + daysUntilSunday);
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  const targetDate = liveDrop.next_drop_at && new Date(liveDrop.next_drop_at) > new Date()
+    ? new Date(liveDrop.next_drop_at)
+    : new Date(nextSundayISO());
+
   if (liveDrop.is_active) {
     return (
       <Link
@@ -50,7 +62,7 @@ export default function LiveBanner() {
       <span className="text-xs font-bold uppercase tracking-widest" style={{ fontFamily: 'var(--font-nunito), sans-serif' }}>
         ⚡ NEXT DROP:
       </span>
-      <CountdownTimer targetDate={new Date(liveDrop.next_drop_at)} className="text-sm" />
+      <CountdownTimer targetDate={targetDate} className="text-sm" />
     </div>
   );
 }
