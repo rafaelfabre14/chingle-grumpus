@@ -54,6 +54,7 @@ function formatPhone(value: string) {
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total, count } = useCart();
   const [customer, setCustomer] = useState<CustomerInfo>(emptyCustomer);
+  const [marketingOptIn, setMarketingOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -116,7 +117,7 @@ export default function CartPage() {
     const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, customer }),
+      body: JSON.stringify({ items, customer, marketingOptIn }),
     });
     const { url } = await res.json();
     if (url) window.location.href = url;
@@ -297,6 +298,19 @@ export default function CartPage() {
                 <span>${orderTotal.toFixed(2)}</span>
               </div>
             </div>
+
+            <label className="flex items-start gap-2 mt-5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={e => setMarketingOptIn(e.target.checked)}
+                className="mt-0.5 shrink-0"
+                style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+              />
+              <span className="text-xs font-semibold text-gray-500" style={{ fontFamily: 'var(--font-nunito), sans-serif' }}>
+                Sign me up for drop alerts, restocks, and exclusive deals
+              </span>
+            </label>
 
             <button
               type="submit"
