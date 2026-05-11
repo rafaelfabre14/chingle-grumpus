@@ -66,7 +66,7 @@ export default function GiveawayForm({ source = 'giveaway' }: GiveawayFormProps)
           YOU&apos;RE IN!
         </h3>
         <p className="text-sm mt-2 text-gray-600">
-          Winner announced Friday on Whatnot — make sure you&apos;re watching!
+          Winner announced Sunday on Whatnot — make sure you&apos;re watching!
         </p>
       </div>
     );

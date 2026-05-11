@@ -115,7 +115,7 @@ export default function HeroSection() {
           </div>
           {/* Speech bubble */}
           <div className="absolute bottom-0 right-0 md:-bottom-4 md:-right-4">
-            <SpeechBubble text="NEW DROPS EVERY FRIDAY!" direction="left" />
+            <SpeechBubble text="NEW DROPS EVERY SUNDAY!" direction="left" />
           </div>
         </div>
       </div>

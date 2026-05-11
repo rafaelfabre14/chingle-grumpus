@@ -133,7 +133,7 @@ export default function LivePageClient({ liveDrop, liveProducts }: LivePageClien
           className="text-white/80 text-base font-semibold max-w-md"
           style={{ fontFamily: 'var(--font-nunito), sans-serif' }}
         >
-          Every Friday, Chingle goes live on Whatnot for exclusive pulls, deals, and giveaways — cards you won&apos;t find anywhere else.
+          Every Sunday, Chingle goes live on Whatnot for exclusive pulls, deals, and giveaways — cards you won&apos;t find anywhere else.
         </p>
 
         {/* Email capture */}

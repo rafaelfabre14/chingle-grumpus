@@ -1,5 +1,5 @@
 const reasons = [
-  { icon: '⚡', title: 'LIVE EVERY FRIDAY', desc: 'Tune in on Whatnot for live rips, deals, and exclusive drops you won\'t find anywhere else.' },
+  { icon: '⚡', title: 'LIVE EVERY SUNDAY', desc: 'Tune in on Whatnot for live rips, deals, and exclusive drops you won\'t find anywhere else.' },
   { icon: '📦', title: 'SHIPS IN 1–2 DAYS', desc: 'Fast fulfillment from a real collector who knows how precious your cards are.' },
   { icon: '🏆', title: 'COLLECTOR TRUSTED', desc: 'PSA, BGS, and CGC authenticated graded slabs. Real grades, real cards, zero BS.' },
 ];

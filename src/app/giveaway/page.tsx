@@ -60,7 +60,7 @@ export default async function GiveawayPage() {
             className="text-base font-semibold max-w-md"
             style={{ fontFamily: 'var(--font-nunito), sans-serif', color: 'var(--color-dark)', opacity: 0.8 }}
           >
-            Enter below — no purchase necessary. Winner announced every Friday on Whatnot.
+            Enter below — no purchase necessary. Winner announced every Sunday on Whatnot.
           </p>
         </div>
       </section>
@@ -76,7 +76,7 @@ export default async function GiveawayPage() {
           </h2>
           <GiveawayForm source="giveaway" />
           <p className="text-xs text-gray-500 text-center mt-4 font-semibold">
-            One entry per email per week. Winner selected randomly every Friday.
+            One entry per email per week. Winner selected randomly every Sunday.
           </p>
         </div>
       </section>
@@ -148,7 +148,7 @@ export default async function GiveawayPage() {
           </h3>
           <ul className="text-sm text-gray-500 font-semibold space-y-1">
             <li>One entry per email address per week.</li>
-            <li>Winner selected randomly every Friday evening.</li>
+            <li>Winner selected randomly every Sunday evening.</li>
             <li>Announced live on Whatnot — tune in to claim your prize.</li>
             <li>No purchase necessary. Open to US residents.</li>
           </ul>
