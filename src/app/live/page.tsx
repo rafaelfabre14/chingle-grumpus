@@ -15,18 +15,18 @@ export default async function LivePage() {
     .limit(1)
     .maybeSingle();
 
-  // If DB date is in the past (expired), compute next Friday instead
-  function nextFridayISO() {
+  // If DB date is in the past (expired), compute next Sunday instead
+  function nextSundayISO() {
     const d = new Date();
-    const daysUntilFriday = (5 - d.getUTCDay() + 7) % 7 || 7;
-    d.setUTCDate(d.getUTCDate() + daysUntilFriday);
+    const daysUntilSunday = (7 - d.getUTCDay()) % 7 || 7;
+    d.setUTCDate(d.getUTCDate() + daysUntilSunday);
     d.setUTCHours(0, 0, 0, 0);
     return d.toISOString();
   }
 
   const dropNextAt = liveDrop?.next_drop_at && new Date(liveDrop.next_drop_at) > new Date()
     ? liveDrop.next_drop_at
-    : nextFridayISO();
+    : nextSundayISO();
 
   const fallbackDrop = liveDrop ? { ...liveDrop, next_drop_at: dropNextAt } : {
     id: 'fallback',

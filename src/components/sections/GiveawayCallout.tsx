@@ -36,7 +36,7 @@ export default function GiveawayCallout() {
         </div>
 
         <p className="text-xs text-gray-700 mt-6 font-semibold">
-          Winner announced every Friday during the live stream on Whatnot. One entry per email per week.
+          Winner announced every Sunday during the live stream on Whatnot. One entry per email per week.
         </p>
       </div>
     </section>

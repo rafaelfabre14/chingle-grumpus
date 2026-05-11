@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Mail, Radio, CreditCard, LogOut, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Mail, Radio, CreditCard, LogOut, ExternalLink, Package } from 'lucide-react';
 import clsx from 'clsx';
 
 const navItems = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard, exact: true },
   { label: 'Orders', href: '/admin/orders', icon: ShoppingBag },
+  { label: 'Inventory', href: '/admin/inventory', icon: Package },
   { label: 'Email Signups', href: '/admin/signups', icon: Mail },
   { label: 'Live Drop', href: '/admin/live', icon: Radio },
   { label: 'Stripe Setup', href: '/admin/stripe', icon: CreditCard },
